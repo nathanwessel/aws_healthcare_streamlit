@@ -1,6 +1,6 @@
 streamlit
 pandas
+pyarrow
+s3fs
 plotly
-altair
-matplotlib
-seaborn
+numpy

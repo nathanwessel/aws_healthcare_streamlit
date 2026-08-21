@@ -943,76 +943,190 @@ with tab_q5:
                 "Current single-snapshot comparison; this is not yet a time-series trend.",
             )
 
-            if selected_ccn is None:
-                facility_turnover = (
-                    q5_plot[
-                        [
-                            "PROVIDER_NAME",
-                            "STATE",
+            if selected_ccn is None and selected_state == "All States":
+                # Avoid a misleading "top 15 facilities" view where many
+                # facilities can tie at the CMS 100% turnover ceiling.
+                # State averages provide a more informative snapshot.
+                state_turnover = (
+                    q5_plot.groupby("STATE", as_index=False)
+                    .agg(
+                        TOTAL_NURSING_STAFF_TURNOVER=(
                             "TOTAL_NURSING_STAFF_TURNOVER",
+                            "mean",
+                        ),
+                        REGISTERED_NURSE_TURNOVER=(
                             "REGISTERED_NURSE_TURNOVER",
-                        ]
-                    ]
+                            "mean",
+                        ),
+                    )
                     .dropna(subset=["TOTAL_NURSING_STAFF_TURNOVER"])
-                    .sort_values("TOTAL_NURSING_STAFF_TURNOVER", ascending=False)
+                    .sort_values(
+                        "TOTAL_NURSING_STAFF_TURNOVER",
+                        ascending=False,
+                    )
                     .head(15)
                 )
 
-                if not facility_turnover.empty:
-                    long_turnover = facility_turnover.melt(
-                        id_vars=["PROVIDER_NAME", "STATE"],
+                if not state_turnover.empty:
+                    long_turnover = state_turnover.melt(
+                        id_vars=["STATE"],
                         value_vars=[
                             "TOTAL_NURSING_STAFF_TURNOVER",
                             "REGISTERED_NURSE_TURNOVER",
                         ],
                         var_name="TURNOVER_TYPE",
-                        value_name="TURNOVER",
+                        value_name="TURNOVER_RATE_PCT",
                     )
+
+                    long_turnover["TURNOVER_TYPE"] = (
+                        long_turnover["TURNOVER_TYPE"].replace(
+                            {
+                                "TOTAL_NURSING_STAFF_TURNOVER":
+                                    "Total Nursing Staff",
+                                "REGISTERED_NURSE_TURNOVER":
+                                    "Registered Nurses",
+                            }
+                        )
+                    )
+
                     bar = px.bar(
                         long_turnover,
-                        x="TURNOVER",
-                        y="PROVIDER_NAME",
+                        x="TURNOVER_RATE_PCT",
+                        y="STATE",
                         color="TURNOVER_TYPE",
                         barmode="group",
                         orientation="h",
-                        hover_data={"STATE": True},
                         labels={
-                            "TURNOVER": "Turnover",
-                            "PROVIDER_NAME": "Facility",
+                            "TURNOVER_RATE_PCT":
+                                "Average Annual Turnover Rate (%)",
+                            "STATE": "State",
                             "TURNOVER_TYPE": "Measure",
                         },
                         title=(
-                            "Available Turnover Snapshot — Facilities with Highest "
-                            "Total Nursing Staff Turnover"
+                            "October 2024 Snapshot — States with the Highest "
+                            "Average Annual Nursing Staff Turnover"
                         ),
                     )
+
+                    state_order = state_turnover["STATE"].tolist()
+                    bar.update_yaxes(
+                        categoryorder="array",
+                        categoryarray=state_order[::-1],
+                    )
+
                     bar.update_layout(
                         template="plotly_white",
                         legend_title_text="",
                         yaxis_title=None,
+                        xaxis_range=[0, 100],
                     )
+
                     st.plotly_chart(bar, use_container_width=True)
+
+                    st.caption(
+                        "These are state averages of the annual turnover "
+                        "measures reported in the October 2024 CMS snapshot. "
+                        "This is a cross-sectional comparison, not a time trend."
+                    )
+
+            elif selected_ccn is None:
+                # When a state is selected, show the distribution across
+                # facilities rather than another ranking dominated by ties.
+                distribution = (
+                    q5_plot[
+                        [
+                            "TOTAL_NURSING_STAFF_TURNOVER",
+                            "REGISTERED_NURSE_TURNOVER",
+                        ]
+                    ]
+                    .melt(
+                        value_vars=[
+                            "TOTAL_NURSING_STAFF_TURNOVER",
+                            "REGISTERED_NURSE_TURNOVER",
+                        ],
+                        var_name="TURNOVER_TYPE",
+                        value_name="TURNOVER_RATE_PCT",
+                    )
+                    .dropna(subset=["TURNOVER_RATE_PCT"])
+                )
+
+                distribution["TURNOVER_TYPE"] = (
+                    distribution["TURNOVER_TYPE"].replace(
+                        {
+                            "TOTAL_NURSING_STAFF_TURNOVER":
+                                "Total Nursing Staff",
+                            "REGISTERED_NURSE_TURNOVER":
+                                "Registered Nurses",
+                        }
+                    )
+                )
+
+                if not distribution.empty:
+                    histogram = px.histogram(
+                        distribution,
+                        x="TURNOVER_RATE_PCT",
+                        color="TURNOVER_TYPE",
+                        barmode="overlay",
+                        opacity=0.70,
+                        nbins=20,
+                        labels={
+                            "TURNOVER_RATE_PCT":
+                                "Annual Turnover Rate (%)",
+                            "TURNOVER_TYPE": "Measure",
+                        },
+                        title=(
+                            f"October 2024 Snapshot — Distribution of Annual "
+                            f"Nursing Staff Turnover in {selected_state}"
+                        ),
+                    )
+
+                    histogram.update_layout(
+                        template="plotly_white",
+                        legend_title_text="",
+                        yaxis_title="Number of Facilities",
+                    )
+                    histogram.update_xaxes(range=[0, 100])
+
+                    st.plotly_chart(histogram, use_container_width=True)
+
+                    st.caption(
+                        "This shows the distribution of annual turnover rates "
+                        "across facilities in the selected state. It is not a "
+                        "time-series trend."
+                    )
+
             else:
                 selected_row = q5_plot.iloc[0]
+
                 detail = pd.DataFrame(
                     {
                         "Measure": [
-                            "Total Nursing Staff Turnover",
-                            "Registered Nurse Turnover",
+                            "Total Nursing Staff",
+                            "Registered Nurses",
                         ],
-                        "Turnover": [
+                        "Annual Turnover Rate (%)": [
                             selected_row["TOTAL_NURSING_STAFF_TURNOVER"],
                             selected_row["REGISTERED_NURSE_TURNOVER"],
                         ],
                     }
                 )
+
                 bar = px.bar(
                     detail,
                     x="Measure",
-                    y="Turnover",
-                    title=f"Available Turnover Snapshot — {selected_row['PROVIDER_NAME']}",
+                    y="Annual Turnover Rate (%)",
+                    title=(
+                        "October 2024 Annual Turnover Snapshot — "
+                        f"{selected_row['PROVIDER_NAME']}"
+                    ),
                 )
-                bar.update_layout(template="plotly_white", xaxis_title=None)
+
+                bar.update_layout(
+                    template="plotly_white",
+                    xaxis_title=None,
+                    yaxis_range=[0, 100],
+                )
+
                 st.plotly_chart(bar, use_container_width=True)
 
 
@@ -1052,9 +1166,11 @@ with st.expander("Data & methodology"):
 
         **Turnover**
 
-        The dashboard shows Total Nursing Staff Turnover and Registered Nurse
-        Turnover. Until additional monthly snapshots are added, the turnover
-        section is a single-snapshot comparison rather than a time trend.
+        The dashboard shows the CMS annual Total Nursing Staff Turnover and
+        Registered Nurse Turnover rates. Until additional monthly snapshots
+        are added, the turnover section uses cross-sectional state/facility
+        comparisons rather than presenting the October 2024 release as a
+        time trend.
 
         **Data source**
 
