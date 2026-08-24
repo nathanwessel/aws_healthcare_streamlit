@@ -53,17 +53,6 @@ Nurse Turnover
 streamlit run deployment/app.py
 ```
 
-**Working with local sample data (optional)**
-- To download the Gold datasets for offline development (example):
-
-```bash
-aws s3 cp s3://nw-healthcare-project/gold/ ./data_from_s3/local_gold --recursive --no-verify-ssl
-```
-
-- If you do not want to use AWS CLI credentials, add an `aws` section to Streamlit secrets (used by the app):
-
-- **Key names:** `aws_access_key_id`, `aws_secret_access_key`, `region_name`, and optionally `aws_session_token`.
-
 **ETL / Glue jobs**
 - Bronze, Silver, and Gold job scripts are in `glue_jobs/`.
 - Example Gold job: [glue_jobs/02_gold_jobs/healthcare_gold_metrics.py](glue_jobs/02_gold_jobs/healthcare_gold_metrics.py).
