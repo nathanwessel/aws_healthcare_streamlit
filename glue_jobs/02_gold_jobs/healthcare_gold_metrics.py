@@ -260,7 +260,6 @@ qrp_df = (
     .withColumn("END_DATE", F.to_date("END_DATE"))
 )
 
-# START BACK HERE MONDAY: You looked at the stuff abvoe
 # =============================================================================
 # 5. Shared helper columns / datasets
 # =============================================================================
@@ -301,7 +300,6 @@ provider_lookback_df = (
     .cache()
 )
 
-# START BACK HERE MONDAY: Before your call, go look at all five of the equations and see if they make sense
 # Occupancy:
 #
 #     average residents per day
@@ -370,8 +368,6 @@ write_gold(
     "01_occupancy_trends",
 )
 
-# START BACK HERE MONDAY: look through these metric equations quickly before the call and ask her
-# what else you need to do to call this project done, because you've been on it for a while!
 # =============================================================================
 # METRIC 2
 # Compare staffing levels vs. bed occupancy rates
